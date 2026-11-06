@@ -25,7 +25,7 @@ function Core:RogueCombat(power, comboPoints, stealthed, target, maxComboPoints)
 	local sliceRemains = APL.Remains(SliceAndDice)
 	local inOpener = self.CombatTime > 0 and GetTime() - self.CombatTime < 5
 	if sliceRemains ~= nil and sliceRemains <= 2
-		and (inOpener or comboPoints ~= nil and comboPoints >= 3)
+		and (inOpener or comboPoints ~= nil and comboPoints >= 2)
 		and CanCastRanked(SliceAndDice, SliceAndDiceByName) then
 		return "D6"
 	end
