@@ -19,93 +19,6 @@ local function RegisterSupportedEvent(addon, event, handler)
 	return ok
 end
 
-local function CreateIndicator()
-	local indicator = _G.GeniusIndicator
-	if not indicator then
-		indicator = CreateFrame("Frame", "GeniusIndicator", UIParent)
-	end
-	indicator:SetParent(UIParent)
-	indicator:SetSize(120, 22)
-	indicator:ClearAllPoints()
-	indicator:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
-	indicator:SetFrameStrata("FULLSCREEN")
-	indicator:SetFrameLevel(UIParent:GetFrameLevel() + 10)
-	indicator:EnableMouse(true)
-	if indicator.SetClampedToScreen then indicator:SetClampedToScreen(true) end
-
-	local color = _G.GeniusIndicatorColor or indicator.Color
-	if not color then
-		color = indicator:CreateTexture("GeniusIndicatorColor", "ARTWORK")
-		color:SetTexture("Interface\\Buttons\\WHITE8x8")
-		color:SetSize(18, 18)
-		color:SetPoint("LEFT", indicator, "LEFT", 0, 0)
-		color:SetVertexColor(0, 0, 0, 1)
-	end
-	indicator.Color = color
-
-	local label = _G.GeniusIndicatorText or indicator.Label
-	if not label then
-		label = indicator:CreateFontString("GeniusIndicatorText", "OVERLAY", "GameFontNormalSmall")
-		label:SetPoint("LEFT", color, "RIGHT", 4, 0)
-		label:SetWidth(96)
-		label:SetJustifyH("LEFT")
-		label:SetTextColor(1, 1, 0)
-		label:SetText("Genius!")
-	end
-	indicator.Label = label
-	return indicator, color, label
-end
-
-local function CreateSwitch(panel, index)
-	local name = "GeniusPanelSwitch" .. index
-	local switch = _G[name] or CreateFrame("CheckButton", name, panel)
-	switch:SetParent(panel)
-	switch:SetSize(146, 20)
-	switch:ClearAllPoints()
-	switch:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -12 - ((index - 1) * 23))
-	switch:RegisterForClicks("LeftButtonUp")
-
-	local function AddCheckTexture(method, texturePath, layer)
-		local texture = switch:CreateTexture(nil, layer)
-		texture:SetTexture(texturePath)
-		texture:SetSize(18, 18)
-		texture:SetPoint("LEFT", switch, "LEFT", 0, 0)
-		switch[method](switch, texture)
-	end
-	AddCheckTexture("SetNormalTexture", "Interface\\Buttons\\UI-CheckBox-Up", "ARTWORK")
-	AddCheckTexture("SetPushedTexture", "Interface\\Buttons\\UI-CheckBox-Down", "ARTWORK")
-	AddCheckTexture("SetCheckedTexture", "Interface\\Buttons\\UI-CheckBox-Check", "OVERLAY")
-	AddCheckTexture("SetHighlightTexture", "Interface\\Buttons\\UI-CheckBox-Highlight", "HIGHLIGHT")
-
-	local labelName = name .. "Text"
-	local label = _G[labelName] or switch:CreateFontString(labelName, "OVERLAY", "GameFontHighlight")
-	label:ClearAllPoints()
-	label:SetPoint("LEFT", switch, "LEFT", 24, 0)
-	label:SetWidth(118)
-	label:SetJustifyH("LEFT")
-	label:SetWordWrap(false)
-	label:SetTextColor(1, 1, 1)
-	switch.Text = label
-	return switch
-end
-
-local function CreatePanel()
-	local panel = _G.GeniusPanel or CreateFrame("Frame", "GeniusPanel", UIParent)
-	panel:SetParent(UIParent)
-	panel:SetSize(160, 112)
-	panel:ClearAllPoints()
-	panel:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 16, -220)
-	panel:SetFrameStrata("BACKGROUND")
-	if not panel.Background then
-		local background = panel:CreateTexture(nil, "BACKGROUND")
-		background:SetAllPoints(panel)
-		background:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
-		background:SetVertexColor(0.03, 0.03, 0.03, 0.82)
-		panel.Background = background
-	end
-	return panel
-end
-
 -- 按键颜色映射
 local keys = {
 	["D1"] = 10,
@@ -187,17 +100,19 @@ end
 
 -- 插件初始化
 function Core:OnInitialize()
-	-- 控件映射
-	local indicator, indicatorColor, indicatorLabel = CreateIndicator()
-	self.Indicator = indicator
-	self.Indicator.Color = indicatorColor
-	self.Label = indicatorLabel
+	-- Widgets and their layout are defined in XML before this file loads.
+	self.Indicator = assert(_G.GeniusIndicator, "GeniusIndicator is missing from indicator.xml")
+	self.Indicator.Color = assert(_G.GeniusIndicatorColor, "GeniusIndicatorColor is missing from indicator.xml")
+	self.Label = assert(_G.GeniusIndicatorText, "GeniusIndicatorText is missing from indicator.xml")
+	self.Indicator.Label = self.Label
 
-	-- The current client no longer provides the legacy OptionsCheckButtonTemplate.
-	-- Build the panel controls directly so every client flavor gets real widgets.
-	self.Panel = CreatePanel()
+	self.Panel = assert(_G.GeniusPanel, "GeniusPanel is missing from switchs.xml")
+	self.Panel.Background = _G.GeniusPanelBackground
 	for index = 1, 4 do
-		self["Switch" .. index] = CreateSwitch(self.Panel, index)
+		local name = "GeniusPanelSwitch" .. index
+		local switch = assert(_G[name], name .. " is missing from switchs.xml")
+		switch.Text = assert(_G[name .. "Text"], name .. "Text is missing from switchs.xml")
+		self["Switch" .. index] = switch
 	end
 	self.Panel:Hide()
 	
@@ -214,8 +129,6 @@ end
 
 -- 插件启用
 function Core:OnEnable()
-	self.Indicator:SetFrameStrata("FULLSCREEN")
-	if self.Indicator.SetClampedToScreen then self.Indicator:SetClampedToScreen(true) end
 	self.Indicator:Show()
 	
 	-- 注册事件

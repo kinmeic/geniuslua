@@ -1,8 +1,54 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+	<CheckButton name="GeniusPanelSwitchTemplate" virtual="true" registerForClicks="LeftButtonUp">
+		<Size><AbsDimension x="146" y="20"/></Size>
+		<NormalTexture name="$parentNormalTexture" file="Interface\Buttons\UI-CheckBox-Up">
+			<Size><AbsDimension x="18" y="18"/></Size>
+			<Anchors><Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT"/></Anchors>
+		</NormalTexture>
+		<PushedTexture name="$parentPushedTexture" file="Interface\Buttons\UI-CheckBox-Down">
+			<Size><AbsDimension x="18" y="18"/></Size>
+			<Anchors><Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT"/></Anchors>
+		</PushedTexture>
+		<CheckedTexture name="$parentCheckedTexture" file="Interface\Buttons\UI-CheckBox-Check">
+			<Size><AbsDimension x="18" y="18"/></Size>
+			<Anchors><Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT"/></Anchors>
+		</CheckedTexture>
+		<HighlightTexture name="$parentHighlightTexture" file="Interface\Buttons\UI-CheckBox-Highlight">
+			<Size><AbsDimension x="18" y="18"/></Size>
+			<Anchors><Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT"/></Anchors>
+		</HighlightTexture>
+		<ButtonText name="$parentText" inherits="GameFontHighlight" justifyH="LEFT" wordwrap="false">
+			<Size><AbsDimension x="118" y="18"/></Size>
+			<Anchors><Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT" x="24" y="0"/></Anchors>
+			<Color r="1" g="1" b="1" a="1"/>
+		</ButtonText>
+	</CheckButton>
+
 	<Frame name="GeniusPanel" frameStrata="BACKGROUND" alpha="1.0" parent="UIParent" hidden="true">
 		<Size><AbsDimension x="160" y="112"/></Size>
 		<Anchors>
-			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT"><Offset><AbsDimension x="16" y="-220"/></Offset></Anchor>
+			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT" x="16" y="-220"/>
 		</Anchors>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture name="$parentBackground" file="Interface\ChatFrame\ChatFrameBackground" setAllPoints="true">
+					<Color r="0.03" g="0.03" b="0.03" a="0.82"/>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Frames>
+			<CheckButton name="$parentSwitch1" inherits="GeniusPanelSwitchTemplate" checked="false">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="14" y="-12"/></Anchors>
+			</CheckButton>
+			<CheckButton name="$parentSwitch2" inherits="GeniusPanelSwitchTemplate" checked="false">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="14" y="-35"/></Anchors>
+			</CheckButton>
+			<CheckButton name="$parentSwitch3" inherits="GeniusPanelSwitchTemplate" checked="false">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="14" y="-58"/></Anchors>
+			</CheckButton>
+			<CheckButton name="$parentSwitch4" inherits="GeniusPanelSwitchTemplate" checked="false">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="14" y="-81"/></Anchors>
+			</CheckButton>
+		</Frames>
 	</Frame>
 </Ui>
