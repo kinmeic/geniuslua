@@ -1,66 +1,8 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
-	<Frame name="GeniusPanel" frameStrata="LOW" alpha="1.0" parent="UIParent" hidden="true">
-		<Size><AbsDimension x="125" y="115"/></Size>
+	<Frame name="GeniusPanel" frameStrata="BACKGROUND" alpha="1.0" parent="UIParent" hidden="true">
+		<Size><AbsDimension x="160" y="112"/></Size>
 		<Anchors>
-			<Anchor point="LEFT"><Offset><AbsDimension x="-5" y="-60"/></Offset></Anchor>
+			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT"><Offset><AbsDimension x="16" y="-220"/></Offset></Anchor>
 		</Anchors>
-		<Frames>
-			<CheckButton name="$parentSwitch1" inherits="OptionsCheckButtonTemplate" checked="false">
-				<Anchors>
-					<Anchor point="TOPLEFT">
-						<Offset><AbsDimension x="15" y="-15"></AbsDimension></Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-					</OnClick>
-				</Scripts>
-			</CheckButton>
-			<CheckButton name="$parentSwitch2" inherits="OptionsCheckButtonTemplate" checked="false">
-				<Anchors>
-					<Anchor point="TOPLEFT">
-						<Offset><AbsDimension x="15" y="-35"></AbsDimension></Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-					</OnClick>
-				</Scripts>
-			</CheckButton>
-			<CheckButton name="$parentSwitch3" inherits="OptionsCheckButtonTemplate" checked="false">
-				<Anchors>
-					<Anchor point="TOPLEFT">
-						<Offset><AbsDimension x="15" y="-55"></AbsDimension></Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-					</OnClick>
-				</Scripts>
-			</CheckButton>
-			<CheckButton name="$parentSwitch4" inherits="OptionsCheckButtonTemplate" checked="false">
-				<Anchors>
-					<Anchor point="TOPLEFT">
-						<Offset><AbsDimension x="15" y="-75"></AbsDimension></Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-					</OnClick>
-				</Scripts>
-			</CheckButton>
-		</Frames>
-		<Scripts>
-			<OnLoad>
-				self.background = CreateFrame("Frame", nil, self, "BackdropTemplate")
-				self.background:SetAllPoints()
-				self.background:SetBackdrop({
-					bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-					edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-					insets = { left = 11, right = 12, top = 12, bottom = 11, },
-				})
-				self.background:SetFrameLevel(self:GetFrameLevel())
-			</OnLoad>
-		</Scripts>
 	</Frame>
 </Ui>

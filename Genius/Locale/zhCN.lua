@@ -1,4 +1,4 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("Genius", "zhCN")
+local L = LibStub("AceLocale-3.0"):NewLocale("kGenius", "zhCN")
 if not L then return end
 
 L["Module Enabled"] = "|cff8080ff%s|r|cff00ff00模块成功启用。|r"
@@ -23,7 +23,3 @@ L["Enemies"] = "敌人数量"
 L["Memory"] = "|cff00FFFF占用|r"
 
 L["Break Success"] = "** 我成功打断了%s的%s。 **"
-
-L["Bind OK"] = "绑定技能|cff00ff50[%s]|r到键|cffffff00[%s]|r|cff00ff00成功|r。"
-L["Bind Fail"] = "绑定技能|cff00ff50[%s]|r到键|cffffff00[%s]|r|cffff0000失败|r。"
-L["Unknow Key To Bind"] = "绑定技能|cff00ff50[%s]|r到键|cffffff00[%s]|r|cffff0000失败，未知按键|r。"

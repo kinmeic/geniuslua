@@ -2,7 +2,7 @@
 	<Include file="Libs\LibStub\LibStub.lua"/>
 	<Include file="Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua"/>
 	
-	<Include file="Libs\LibSpells-1.0\LibSpells-1.0.xml"/>
+	<Include file="Libs\LibSpells-4.3\LibSpells-4.3.xml"/>
 	<Include file="Libs\LibUnit-6.0\LibUnit-6.0.xml"/>
 	
 	<Include file="Libs\AceAddon-3.0\AceAddon-3.0.lua"/>
@@ -11,5 +11,4 @@
 	<Include file="Libs\AceHook-3.0\AceHook-3.0.lua"/>
 <!--	<Include file="Libs\AceTimer-3.0\AceTimer-3.0.lua"/> -->
 	<Include file="Libs\AceLocale-3.0\AceLocale-3.0.lua"/>
-	
 </Ui>

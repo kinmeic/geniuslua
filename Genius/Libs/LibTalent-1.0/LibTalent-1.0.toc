@@ -1,6 +1,0 @@
-## Interface: 40200
-## Title: LibTalent-1.0
-## Version: 1.0
-## Author: Kinmeic
-
-LibTalent-1.0.lua

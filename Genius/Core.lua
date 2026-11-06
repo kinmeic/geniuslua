@@ -1,7 +1,110 @@
-if not LibStub then error("Genius requires LibStub.") end
+if not LibStub then error("kGenius requires LibStub.") end
 
-local Core = LibStub("AceAddon-3.0"):NewAddon("Genius", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale("Genius")
+local Core = LibStub("AceAddon-3.0"):NewAddon("kGenius", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale("kGenius")
+
+local function RegisterSupportedEvent(addon, event, handler)
+	-- C_EventUtils.IsEventValid is absent in some client flavors. Validate when
+	-- available, then protect registration itself as the final compatibility check.
+	if C_EventUtils and C_EventUtils.IsEventValid then
+		local ok, valid = pcall(C_EventUtils.IsEventValid, event)
+		if ok and not valid then return false end
+	end
+	local ok
+	if handler then
+		ok = pcall(addon.RegisterEvent, addon, event, handler)
+	else
+		ok = pcall(addon.RegisterEvent, addon, event)
+	end
+	return ok
+end
+
+local function CreateIndicator()
+	local indicator = _G.GeniusIndicator
+	if not indicator then
+		indicator = CreateFrame("Frame", "GeniusIndicator", UIParent)
+	end
+	indicator:SetParent(UIParent)
+	indicator:SetSize(120, 22)
+	indicator:ClearAllPoints()
+	indicator:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+	indicator:SetFrameStrata("FULLSCREEN")
+	indicator:SetFrameLevel(UIParent:GetFrameLevel() + 10)
+	indicator:EnableMouse(true)
+	if indicator.SetClampedToScreen then indicator:SetClampedToScreen(true) end
+
+	local color = _G.GeniusIndicatorColor or indicator.Color
+	if not color then
+		color = indicator:CreateTexture("GeniusIndicatorColor", "ARTWORK")
+		color:SetTexture("Interface\\Buttons\\WHITE8x8")
+		color:SetSize(18, 18)
+		color:SetPoint("LEFT", indicator, "LEFT", 0, 0)
+		color:SetVertexColor(0, 0, 0, 1)
+	end
+	indicator.Color = color
+
+	local label = _G.GeniusIndicatorText or indicator.Label
+	if not label then
+		label = indicator:CreateFontString("GeniusIndicatorText", "OVERLAY", "GameFontNormalSmall")
+		label:SetPoint("LEFT", color, "RIGHT", 4, 0)
+		label:SetWidth(96)
+		label:SetJustifyH("LEFT")
+		label:SetTextColor(1, 1, 0)
+		label:SetText("Genius!")
+	end
+	indicator.Label = label
+	return indicator, color, label
+end
+
+local function CreateSwitch(panel, index)
+	local name = "GeniusPanelSwitch" .. index
+	local switch = _G[name] or CreateFrame("CheckButton", name, panel)
+	switch:SetParent(panel)
+	switch:SetSize(146, 20)
+	switch:ClearAllPoints()
+	switch:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -12 - ((index - 1) * 23))
+	switch:RegisterForClicks("LeftButtonUp")
+
+	local function AddCheckTexture(method, texturePath, layer)
+		local texture = switch:CreateTexture(nil, layer)
+		texture:SetTexture(texturePath)
+		texture:SetSize(18, 18)
+		texture:SetPoint("LEFT", switch, "LEFT", 0, 0)
+		switch[method](switch, texture)
+	end
+	AddCheckTexture("SetNormalTexture", "Interface\\Buttons\\UI-CheckBox-Up", "ARTWORK")
+	AddCheckTexture("SetPushedTexture", "Interface\\Buttons\\UI-CheckBox-Down", "ARTWORK")
+	AddCheckTexture("SetCheckedTexture", "Interface\\Buttons\\UI-CheckBox-Check", "OVERLAY")
+	AddCheckTexture("SetHighlightTexture", "Interface\\Buttons\\UI-CheckBox-Highlight", "HIGHLIGHT")
+
+	local labelName = name .. "Text"
+	local label = _G[labelName] or switch:CreateFontString(labelName, "OVERLAY", "GameFontHighlight")
+	label:ClearAllPoints()
+	label:SetPoint("LEFT", switch, "LEFT", 24, 0)
+	label:SetWidth(118)
+	label:SetJustifyH("LEFT")
+	label:SetWordWrap(false)
+	label:SetTextColor(1, 1, 1)
+	switch.Text = label
+	return switch
+end
+
+local function CreatePanel()
+	local panel = _G.GeniusPanel or CreateFrame("Frame", "GeniusPanel", UIParent)
+	panel:SetParent(UIParent)
+	panel:SetSize(160, 112)
+	panel:ClearAllPoints()
+	panel:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 16, -220)
+	panel:SetFrameStrata("BACKGROUND")
+	if not panel.Background then
+		local background = panel:CreateTexture(nil, "BACKGROUND")
+		background:SetAllPoints(panel)
+		background:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+		background:SetVertexColor(0.03, 0.03, 0.03, 0.82)
+		panel.Background = background
+	end
+	return panel
+end
 
 -- 按键颜色映射
 local keys = {
@@ -17,6 +120,7 @@ local keys = {
 	["D0"] = 55,
 	["S-"] = 60,
 	["S="] = 65,
+	["S`"] = 130,
 	["F1"] = 70,
 	["F2"] = 75,
 	["F3"] = 80,
@@ -29,81 +133,54 @@ local keys = {
 	["F10"] = 115,
 	["F11"] = 120,
 	["F12"] = 125,
-	["ALT"] = 130,
-	["NUMPAD0"] = 135,
-	["NUMPAD1"] = 140,
-	["NUMPAD2"] = 145,
-	["NUMPAD3"] = 150,
-	["NUMPAD4"] = 155,
-	["NUMPAD5"] = 160,
-	["NUMPAD6"] = 175,
-	["NUMPAD7"] = 170,
-	["NUMPAD8"] = 175,
-	["NUMPAD9"] = 180,
-	["X1"] = 190,
-	["X2"] = 195,
+	["X1"] = 150,
+	["X2"] = 155,
 	["SPACE"] = 200
-}
-
-local options = {
-	["DEFAULT_SWITCH_SCHEME"] = {
-		{ ["name"] = "自动攻击", ["show"] = true },
-		{ ["name"] = "禁止断法", ["show"] = true },
-		{ ["name"] = "手动爆发", ["show"] = true },
-		{ ["name"] = "群体攻击", ["show"] = true }
-	}
 }
 
 -- 定时器
 local MainTimer = 0
-local passed = 0
+
+local function IsPlayerInCombat(core)
+	if UnitAffectingCombat then
+		local ok, inCombat = pcall(UnitAffectingCombat, "player")
+		if ok and not (issecretvalue and issecretvalue(inCombat)) then
+			if inCombat == true or inCombat == 1 then return true end
+			if inCombat == false or inCombat == 0 then return false end
+		end
+	end
+	return core.CombatTime ~= nil and core.CombatTime ~= 0
+end
+
+function Core:UpdateIndicator()
+	if not IsLeftShiftKeyDown() and self.Auto then
+		self:Auto()
+	else
+		self:Press(nil)
+	end
+end
+
 local OnUpdate = function(self, elapsed)
 	MainTimer = MainTimer + elapsed
 
-	--刷荣誉
---	if Core.Switch4:GetChecked() then
---		passed = passed + elapsed
---		
---		if (passed > 3) then
---			StaticPopup1Button1:Click()
---			print("try to close logout dialog.")
---			passed = 0
---		end
---	end
-
 	if (MainTimer > 0.05) then
---		MainTimer = MainTimer - 0.05
-		MainTimer = MainTimer - 0.1
-		
---		if (not IsLeftShiftKeyDown()) and Core.Auto then
-		
-		if (not Core.Switch1:GetChecked()) then
-			return
-		elseif Core.Auto then
-			Core:Auto(MainTimer)
-		else
-			Core:Press(nil)
-		end
+		MainTimer = MainTimer - 0.05
+		Core:UpdateIndicator()
 	end
 end
 
 -- 命令行执行
 local OnCommand = function(msg)
 	local arg, param = msg:match("^(%S*)%s*(.-)$");
-	
-	arg = string.lower(arg)
+	if arg == "auto" then
+		local switch = Core.Switch1 or _G.GeniusPanelSwitch1
+		if switch then
+			switch:SetChecked(not (IsMetaKeyDown and IsMetaKeyDown()))
+		end
+		return
+	end
 
-	if strlen(arg) == 7 and string.sub(arg, 0, 6) == "switch" then
-		Core:SetSwitch(string.sub(arg, 7, 7), param)
-	elseif arg == "auto" and param == "next" then
-		Core.Switch1:SetChecked(false)
-		Core.AutoAfterCasted = true
-		Core:Manual(arg, param)
-	elseif arg == "auto" then
-		Core.Switch1:SetChecked(true)
-	elseif arg == "test" then
-		Core:Press(param)
-	else
+	if Core.Manual then
 		Core:Manual(arg, param)
 	end
 end
@@ -111,55 +188,54 @@ end
 -- 插件初始化
 function Core:OnInitialize()
 	-- 控件映射
-	self.Indicator = _G["GeniusIndicator"]
-	self.Indicator.Color = _G["GeniusIndicatorColor"]
-	self.Label = _G["GeniusIndicatorText"]
-	
-	-- 开关映射
-	self.Switch1 = _G["GeniusPanelSwitch1"]
-	self.Switch2 = _G["GeniusPanelSwitch2"]
-	self.Switch3 = _G["GeniusPanelSwitch3"]
-	self.Switch4 = _G["GeniusPanelSwitch4"]
-	
-	-- 配置映射
-	self.Options = options
+	local indicator, indicatorColor, indicatorLabel = CreateIndicator()
+	self.Indicator = indicator
+	self.Indicator.Color = indicatorColor
+	self.Label = indicatorLabel
+
+	-- The current client no longer provides the legacy OptionsCheckButtonTemplate.
+	-- Build the panel controls directly so every client flavor gets real widgets.
+	self.Panel = CreatePanel()
+	for index = 1, 4 do
+		self["Switch" .. index] = CreateSwitch(self.Panel, index)
+	end
+	self.Panel:Hide()
 	
 	-- 声明属性
-	self.AutoAfterCasted = false	-- 施法成功够启动自动攻击
 	self.ShowStanceNotice = true
 	self.Talent = 0
 	self.Stance = 0
 	self.CombatTime = 0
 	self.CalcDamage = 0
-	self.IncomingDamage = {}		-- 承受伤害
 
 	-- 天赋方案
 	self.Scheme = {}
-	
-	-- 按键绑定方案
-	self.Binding = {}
 end
 
 -- 插件启用
 function Core:OnEnable()
-	self.Indicator:SetFrameStrata("TOOLTIP")	--FULLSCREEN
+	self.Indicator:SetFrameStrata("FULLSCREEN")
+	if self.Indicator.SetClampedToScreen then self.Indicator:SetClampedToScreen(true) end
+	self.Indicator:Show()
 	
 	-- 注册事件
-	self:RegisterEvent("VARIABLES_LOADED")				--参数加载
-	self:RegisterEvent("PLAYER_ALIVE")					--玩家复活
-	self:RegisterEvent("PLAYER_ENTERING_WORLD")
-	self:RegisterEvent("PLAYER_REGEN_DISABLED")			--进入战斗
-	self:RegisterEvent("PLAYER_REGEN_ENABLED")			--脱离战斗
-	self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")	--玩家切换天赋事件
-	self:RegisterEvent("UPDATE_SHAPESHIFT_FORM")		--玩家姿态切换事件
-	self:RegisterEvent("UPDATE_STEALTH")
-	self:RegisterEvent("UNIT_SPELLCAST_SENT")			--发送施法信息到服务器
-	self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")		--施法成功
-	self:RegisterEvent("UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_FAILED")		--施法失败
-	self:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_FAILED")	--施法中断
-	self:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET", "UNIT_SPELLCAST_FAILED")	--施法失败
---	self:RegisterEvent("UNIT_AURA")						--效果变化
-	self:RegisterEvent("UI_ERROR_MESSAGE")				--错误消息
+	RegisterSupportedEvent(self, "VARIABLES_LOADED")			--参数加载
+	RegisterSupportedEvent(self, "PLAYER_ALIVE")				--玩家复活
+	RegisterSupportedEvent(self, "PLAYER_REGEN_DISABLED")		--进入战斗
+	RegisterSupportedEvent(self, "PLAYER_REGEN_ENABLED")		--脱离战斗
+	RegisterSupportedEvent(self, "PLAYER_TALENT_UPDATE")		--玩家天赋更新事件
+	RegisterSupportedEvent(self, "ACTIVE_PLAYER_SPECIALIZATION_CHANGED", "PLAYER_TALENT_UPDATE")
+	RegisterSupportedEvent(self, "TRAIT_CONFIG_UPDATED", "PLAYER_TALENT_UPDATE")
+	RegisterSupportedEvent(self, "UPDATE_SHAPESHIFT_FORM")		--玩家姿态切换事件
+	RegisterSupportedEvent(self, "UNIT_SPELLCAST_SENT")		--发送施法信息到服务器
+	RegisterSupportedEvent(self, "UNIT_SPELLCAST_SUCCEEDED")	--施法成功
+	RegisterSupportedEvent(self, "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_FAILED")		--施法失败
+	RegisterSupportedEvent(self, "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_FAILED")	--施法中断
+	RegisterSupportedEvent(self, "UNIT_SPELLCAST_FAILED_QUIET", "UNIT_SPELLCAST_FAILED")	--施法失败
+	RegisterSupportedEvent(self, "UI_ERROR_MESSAGE")			--错误消息
+	if self.RegisterTargetCastEvents then
+		self:RegisterTargetCastEvents()
+	end
 	
 	-- 注册自动刷新
 	self.Indicator:SetScript("OnUpdate", OnUpdate)
@@ -172,7 +248,7 @@ function Core:OnEnable()
 	-- 显示加载
 	if self.Auto or self.Manual then
 		self:Printf(L["Module Enabled"], UnitClass("player"))
-		self:ACTIVE_TALENT_GROUP_CHANGED()
+		self:RefreshTalent(true)
 	else
 		self:Printf(L["Module Not Found"], UnitClass("player"))
 	end
@@ -181,31 +257,34 @@ end
 -- 插件禁用
 function Core:OnDisable()
 	self.Indicator:SetScript("OnUpdate", nil)
+	if self.UnregisterTargetCastEvents then
+		self:UnregisterTargetCastEvents()
+	end
 end
 
 -- 发送按键信息
 function Core:Press(keyName)
-	--keyName = "F5"
+	local combatGreen = IsPlayerInCombat(self) and (6 / 255) or 0
 	if keyName and keys[keyName] then
 		-- 有效按键
-		self.Indicator.Color:SetColorTexture(keys[keyName] / 255, 0.025, 0, 1)
-		--self.Indicator.Color:SetVertexColor(keys[keyName] / 255, 0.025, 0, 1)
+		self.Indicator.Color:SetVertexColor(keys[keyName] / 255, 6 / 255, 0, 1)
 		self.Label:SetText(keyName)
 	else
 		-- 无效按键
-		--self.Indicator.Color:SetVertexColor(0, self.CombatTime == 0 and 0 or 0.025, 0, 1)
-		self.Indicator.Color:SetColorTexture(0, self.CombatTime == 0 and 0 or 0.025, 0, 1)
+		self.Indicator.Color:SetVertexColor(0, combatGreen, 0, 1)
 		self.Label:SetText(IsLeftShiftKeyDown() and L["Pending"] or L["Waiting"])
 	end
 end
 
 -- 显示鼠标提示
 function Core:ShowGameTooltip()
-	GameTooltip_SetDefaultAnchor(GameTooltip, self.Indicator);
+	GameTooltip:SetOwner(self.Indicator, "ANCHOR_CURSOR")
+	GameTooltip:ClearLines()
 	GameTooltip:AddLine(L["Information"])
-	GameTooltip:AddDoubleLine(L["Talent"], self.Talent, 0, 1, 0)
-	GameTooltip:AddDoubleLine(L["Stance"], self.Stance, 0, 1, 0)
---	GameTooltip:AddDoubleLine(L["Memory"], format("%.2f",GetAddOnMemoryUsage("Genius")).." KB")
+	GameTooltip:AddDoubleLine(L["Talent"], self.Talent or 0, 0, 1, 0)
+	GameTooltip:AddDoubleLine(L["Stance"], self.Stance or 0, 0, 1, 0)
+	UpdateAddOnMemoryUsage()
+	GameTooltip:AddDoubleLine(L["Memory"], format("%.2f",GetAddOnMemoryUsage("Genius")).." KB")
 	GameTooltip:Show()
 end
 
@@ -218,70 +297,5 @@ function Core:ShowNotifier(text, continue, force)
 		GeniusNotifier.last = GetTime()
 		GeniusNotifier:Show()
 		return GeniusNotifier.last
-	end
-end
-
--- 设置开关
-function Core:UpdateSwitchs()
-	local class = select(2, UnitClass("player"))
-	local spec = "TALENT" .. Core.Talent
-	local scheme = options["DEFAULT_SWITCH_SCHEME"]
-	
-	if options[class] and options[class]["SWITCH_SCHEME"] and 
-		options[class]["SWITCH_SCHEME"][spec] then
-		scheme = options[class]["SWITCH_SCHEME"][spec]
-	end
-	
-	_G["GeniusPanel"]:Show()
-	
-	for i = 1, #scheme do
-		local name = scheme[i]["name"] or ""
-		local show = scheme[i]["show"]
-		
-		if _G["GeniusPanelSwitch" .. i] then
-			_G["GeniusPanelSwitch" .. i]:SetChecked(false)
-			
-			if show then
-				_G["GeniusPanelSwitch" .. i]:Show()
-				_G["GeniusPanelSwitch" .. i .. "Text"]:SetText(name)
-			else
-				_G["GeniusPanelSwitch" .. i]:Hide()
-			end
-		end
-	end
-end
-
--- 设置开关
-function Core:SetSwitch(number, status, text)
-	local widget = "GeniusPanelSwitch" .. number
-	
-	if _G[widget] then
-		if status == "on" then
-			_G[widget]:SetChecked(true)
-		elseif status == "off" then
-			_G[widget]:SetChecked(false)
-		elseif status == "show" then
-			_G[widget]:Show()
-		elseif status == "hide" then
-			_G[widget]:Hide()
-		elseif status == "text" then
-			_G[widget .. "Text"]:SetText(text)
-		end
-	end
-end
-
--- 获取开关选中情况
-function Core:IsSwitchChecked(number)
-	local widget = "GeniusPanelSwitch" .. number
-	return _G[widget]:GetChecked()
-end
-
-function Core:Bind(key, spell)
-	if keys[key] == nil then
-		self:Printf(L["Unknow Key To Bind"], spell, key)
-	elseif SetBindingSpell(key, spell) then
-		self:Printf(L["Bind OK"], spell, key)
-	else
-		self:Printf(L["Bind Fail"], spell, key)
 	end
 end

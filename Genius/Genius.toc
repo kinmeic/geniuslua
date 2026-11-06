@@ -1,4 +1,6 @@
-﻿## Interface: 90000
+## Interface: 16001
+## AllowLoadGameType: camelot
+## ExcludeLoadGameType: standard, classic
 ## Title: |cffff6633Genius|r
 ## Title-zhCN: |cffff6633Genius - 核心|r
 ## Notes: |cff99ff33Version|r 6.0

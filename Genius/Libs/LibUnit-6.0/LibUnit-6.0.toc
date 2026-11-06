@@ -1,4 +1,4 @@
-## Interface: 40200
+## Interface: 16001
 ## Title: LibUnit-6.0
 ## Version: 6.0
 ## Author: Kinmeic

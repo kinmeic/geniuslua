@@ -1,6 +1,0 @@
-## Interface: 40200
-## Title: LibUnit-1.0
-## Version: 1.0
-## Author: Kinmeic
-
-LibUnit-1.0.lua

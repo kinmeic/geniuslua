@@ -1,4 +1,4 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("Genius", "zhTW")
+local L = LibStub("AceLocale-3.0"):NewLocale("kGenius", "zhTW")
 if not L then return end
 
 L["Module Enabled"] = "|cff8080ff%s|r|cff00ff00模塊成功加載。|r"

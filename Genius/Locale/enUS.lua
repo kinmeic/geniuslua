@@ -1,4 +1,4 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("Genius", "enUS", true)
+local L = LibStub("AceLocale-3.0"):NewLocale("kGenius", "enUS", true)
 if not L then return end
 
 L["Module Enabled"] = "|cff8080ff%s|r |cff00ff00module enabled.|r"
@@ -23,6 +23,3 @@ L["Enemies"] = "Enemies"
 L["Memory"] = "|cff00FFFFMemory|r"
 
 L["Break Success"] = "** I have breaked %s's %s. **"
-L["Bind OK"] = "Bind |cff00ff50[%s]|r to key |cffffff00[%s]|r successed."
-L["Bind Fail"] = "Bind |cff00ff50[%s]|r to key |cffffff00[%s]|r failed."
-L["Unknow Key To Bind"] = "Bind |cff00ff50[%s]|r to key |cffffff00[%s]|r failed, unknow key for binding."
