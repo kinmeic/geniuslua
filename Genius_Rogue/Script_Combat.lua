@@ -17,6 +17,7 @@ local PistolShot = APL.Spell(185763)
 local Dispatch = APL.Spell(2098)
 local BetweenTheEyes = APL.Spell(315341)
 local CoupDeGrace = APL.Spell(441776)
+local Eviscerate = APL.Spell(6760)
 local KillingSpree = APL.Spell(51690)
 local AdrenalineRush = APL.Spell(13750)
 local BladeFlurry = APL.Spell(13877)
@@ -108,6 +109,7 @@ function Core:RogueCombat(power, comboPoints, stealthed, target, maxComboPoints)
 
 		if APL.CanCast(CoupDeGrace) then return "D5" end
 		if APL.CanCast(Dispatch) then return "D5" end
+		if APL.CanCast(Eviscerate, nil, true, true) then return "D5" end
 	end
 
 	-- Hidden Opportunity and Audacity make Ambush the preferred builder.
