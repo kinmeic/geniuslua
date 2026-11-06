@@ -10,7 +10,7 @@ local SW2 = _G["GeniusPanelSwitch2"]
 local NoSpecKick = Core.RogueAPL.Spell(1766)
 local NoSpecSinisterStrike = Core.RogueAPL.Spell(1752)
 local NoSpecSinisterStrikeByName = Core.RogueAPL.RankedSpell(1752)
-local NoSpecEviscerate = Core.RogueAPL.RankedSpell(6760)
+local NoSpecEviscerate = Core.RogueAPL.Spell(6760)
 
 local function IsSecret(value)
 	return issecretvalue and issecretvalue(value)
@@ -68,7 +68,8 @@ function Core:RogueNoSpecialization(power, comboPoints, stealthed, target, maxCo
 	end
 
 	local finishAt = maxComboPoints or 5
-	if comboPoints ~= nil and comboPoints >= finishAt and APL.CanCast(NoSpecEviscerate) then
+	if comboPoints ~= nil and comboPoints >= finishAt
+		and APL.CanCast(NoSpecEviscerate, nil, true, true) then
 		return "D5"
 	end
 
