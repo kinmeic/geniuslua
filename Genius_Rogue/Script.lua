@@ -105,9 +105,8 @@ function Core:Manual()
 		actionKey = self:RogueNoSpecialization(energy, comboPoints, stealthed, Target, maxComboPoints)
 	end
 
-	-- Keep the basic builder available when a specialization APL has no usable
-	-- recommendation yet (for example, before its spec-specific builder is learned).
-	if not actionKey then
+	-- Fall back to the basic builder only while there is room for combo points.
+	if not actionKey and (comboPoints == nil or comboPoints < maxComboPoints) then
 		local APL = self.RogueAPL
 		if APL and (APL.CanCast(NoSpecSinisterStrike, nil, true, true)
 			or APL.CanCast(NoSpecSinisterStrikeByName, nil, true, true)) then
