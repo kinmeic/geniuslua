@@ -12,6 +12,7 @@
 embeds.xml
 #@end-no-lib-strip@
 
+indicator.xml
 switchs.xml
 
 Locale\enUS.lua

@@ -1,0 +1,32 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+	<Frame name="GeniusIndicator" parent="UIParent" frameStrata="FULLSCREEN" alpha="1.0" toplevel="true" enableMouse="true" clampedToScreen="true" hidden="false">
+		<Size><AbsDimension x="120" y="22"/></Size>
+		<Anchors>
+			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT" x="0" y="0"/>
+		</Anchors>
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture name="$parentColor" file="Interface\Buttons\WHITE8x8" alphaMode="DISABLE">
+					<Size><AbsDimension x="18" y="18"/></Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT"/>
+					</Anchors>
+					<Color r="0" g="0" b="0" a="1"/>
+				</Texture>
+			</Layer>
+			<Layer level="OVERLAY">
+				<FontString name="$parentText" inherits="GameFontNormalSmall" justifyH="LEFT" text="Genius!">
+					<Color r="1" g="1" b="0" a="1"/>
+					<Size><AbsDimension x="96" y="18"/></Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="$parentColor" relativePoint="RIGHT" x="4" y="0" />
+					</Anchors>
+					<Shadow>
+						<Offset x="1.25" y="-1.25" />
+						<Color r="0" g="0" b="0"/>
+					</Shadow>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Frame>
+</Ui>

@@ -19,33 +19,6 @@ local function RegisterSupportedEvent(addon, event, handler)
 	return ok
 end
 
-local function CreateIndicator()
-	local indicator = CreateFrame("Frame", "GeniusIndicator", UIParent)
-	indicator:SetSize(120, 22)
-	indicator:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
-	indicator:SetFrameStrata("FULLSCREEN")
-	indicator:SetFrameLevel(UIParent:GetFrameLevel() + 10)
-	indicator:EnableMouse(true)
-	if indicator.SetClampedToScreen then indicator:SetClampedToScreen(true) end
-
-	local color = indicator:CreateTexture("GeniusIndicatorColor", "ARTWORK")
-	color:SetTexture("Interface\\Buttons\\WHITE8x8")
-	color:SetSize(18, 18)
-	color:SetPoint("LEFT", indicator, "LEFT", 0, 0)
-	color:SetVertexColor(0, 0, 0, 1)
-
-	local label = indicator:CreateFontString("GeniusIndicatorText", "OVERLAY", "GameFontNormalSmall")
-	label:SetPoint("LEFT", color, "RIGHT", 4, 0)
-	label:SetSize(96, 18)
-	label:SetJustifyH("LEFT")
-	label:SetTextColor(1, 1, 0)
-	label:SetText("Genius!")
-
-	indicator.Color = color
-	indicator.Label = label
-	return indicator, color, label
-end
-
 -- 按键颜色映射
 local keys = {
 	["D1"] = 10,
@@ -164,10 +137,29 @@ function Core:OnInitialize()
 	self.db = GeniusDB
 	if type(self.db.panelUnlocked) ~= "boolean" then self.db.panelUnlocked = false end
 
-	local indicator, indicatorColor, indicatorLabel = CreateIndicator()
-	self.Indicator = indicator
-	self.Indicator.Color = indicatorColor
-	self.Label = indicatorLabel
+	-- Widgets and their layout are defined in XML before this file loads.
+	self.Indicator = assert(_G.GeniusIndicator, "GeniusIndicator is missing from indicator.xml")
+	self.Indicator.Color = assert(_G.GeniusIndicatorColor, "GeniusIndicatorColor is missing from indicator.xml")
+	self.Label = assert(_G.GeniusIndicatorText, "GeniusIndicatorText is missing from indicator.xml")
+	self.Indicator.Label = self.Label
+	-- Normalize any existing global widget to the original top-left layout.
+	self.Indicator:SetParent(UIParent)
+	self.Indicator:SetSize(120, 22)
+	self.Indicator:ClearAllPoints()
+	self.Indicator:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+	self.Indicator:SetFrameStrata("FULLSCREEN")
+	self.Indicator:SetFrameLevel(UIParent:GetFrameLevel() + 10)
+	self.Indicator:EnableMouse(true)
+	if self.Indicator.SetClampedToScreen then self.Indicator:SetClampedToScreen(true) end
+	self.Indicator.Color:ClearAllPoints()
+	self.Indicator.Color:SetSize(18, 18)
+	self.Indicator.Color:SetPoint("LEFT", self.Indicator, "LEFT", 0, 0)
+	self.Indicator.Color:SetVertexColor(0, 0, 0, 1)
+	self.Label:ClearAllPoints()
+	self.Label:SetPoint("LEFT", self.Indicator.Color, "RIGHT", 4, 0)
+	self.Label:SetWidth(96)
+	self.Label:SetJustifyH("LEFT")
+	self.Label:SetTextColor(1, 1, 0)
 
 	self.Panel = assert(_G.GeniusPanel, "GeniusPanel is missing from switchs.xml")
 	self.Panel.Background = _G.GeniusPanelBackground
