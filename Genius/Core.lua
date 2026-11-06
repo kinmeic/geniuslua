@@ -154,7 +154,7 @@ function Core:OnInitialize()
 	self.Indicator.Color:ClearAllPoints()
 	self.Indicator.Color:SetSize(18, 18)
 	self.Indicator.Color:SetPoint("LEFT", self.Indicator, "LEFT", 0, 0)
-	self.Indicator.Color:SetColorTexture(0, 0, 0, 1)
+	self.Indicator.Color:SetVertexColor(0, 0, 0, 1)
 	self.Label:ClearAllPoints()
 	self.Label:SetPoint("LEFT", self.Indicator.Color, "RIGHT", 4, 0)
 	self.Label:SetWidth(96)
@@ -257,11 +257,11 @@ function Core:Press(keyName)
 	local combatGreen = self.CombatTime == 0 and 0 or 0.025
 	if keyName and keys[keyName] then
 		-- 有效按键
-		self.Indicator.Color:SetColorTexture(keys[keyName] / 255, 0.025, 0, 1)
+		self.Indicator.Color:SetVertexColor(keys[keyName] / 255, 0.025, 0, 1)
 		self.Label:SetText(keyName)
 	else
 		-- 无效按键
-		self.Indicator.Color:SetColorTexture(0, combatGreen, 0, 1)
+		self.Indicator.Color:SetVertexColor(0, combatGreen, 0, 1)
 		self.Label:SetText(IsLeftShiftKeyDown() and L["Pending"] or L["Waiting"])
 	end
 end
