@@ -1,7 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
-	<Script file="Options.lua"/>
-<!--	<Script file="Mutilate.lua"/> -->
-<!--	<Script file="Outlaw.lua"/> -->
-<!--	<Script file="Subtlety.lua"/> -->
+	<Script file="RogueAPL.lua"/>
+	<Script file="Script_Assassination.lua"/>
+	<Script file="Script_Combat.lua"/>
+	<Script file="Script_Subtlety.lua"/>
 	<Script file="Script.lua"/>
 </Ui>
