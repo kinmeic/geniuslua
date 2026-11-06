@@ -54,17 +54,6 @@ local keys = {
 -- 定时器
 local MainTimer = 0
 
-local function IsPlayerInCombat(core)
-	if UnitAffectingCombat then
-		local ok, inCombat = pcall(UnitAffectingCombat, "player")
-		if ok and not (issecretvalue and issecretvalue(inCombat)) then
-			if inCombat == true or inCombat == 1 then return true end
-			if inCombat == false or inCombat == 0 then return false end
-		end
-	end
-	return core.CombatTime ~= nil and core.CombatTime ~= 0
-end
-
 function Core:UpdateIndicator()
 	if not IsLeftShiftKeyDown() and self.Auto then
 		self:Auto()
@@ -165,7 +154,7 @@ function Core:OnInitialize()
 	self.Indicator.Color:ClearAllPoints()
 	self.Indicator.Color:SetSize(18, 18)
 	self.Indicator.Color:SetPoint("LEFT", self.Indicator, "LEFT", 0, 0)
-	self.Indicator.Color:SetVertexColor(0, 0, 0, 1)
+	self.Indicator.Color:SetColorTexture(0, 0, 0, 1)
 	self.Label:ClearAllPoints()
 	self.Label:SetPoint("LEFT", self.Indicator.Color, "RIGHT", 4, 0)
 	self.Label:SetWidth(96)
@@ -265,14 +254,14 @@ end
 
 -- 发送按键信息
 function Core:Press(keyName)
-	local combatGreen = IsPlayerInCombat(self) and (6 / 255) or 0
+	local combatGreen = self.CombatTime == 0 and 0 or 0.025
 	if keyName and keys[keyName] then
 		-- 有效按键
-		self.Indicator.Color:SetVertexColor(keys[keyName] / 255, 6 / 255, 0, 1)
+		self.Indicator.Color:SetColorTexture(keys[keyName] / 255, 0.025, 0, 1)
 		self.Label:SetText(keyName)
 	else
 		-- 无效按键
-		self.Indicator.Color:SetVertexColor(0, combatGreen, 0, 1)
+		self.Indicator.Color:SetColorTexture(0, combatGreen, 0, 1)
 		self.Label:SetText(IsLeftShiftKeyDown() and L["Pending"] or L["Waiting"])
 	end
 end
