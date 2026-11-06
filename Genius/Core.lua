@@ -153,6 +153,24 @@ function Core:OnInitialize()
 	self.Indicator.Color = assert(_G.GeniusIndicatorColor, "GeniusIndicatorColor is missing from indicator.xml")
 	self.Label = assert(_G.GeniusIndicatorText, "GeniusIndicatorText is missing from indicator.xml")
 	self.Indicator.Label = self.Label
+	-- Normalize any existing global widget to the original top-left layout.
+	self.Indicator:SetParent(UIParent)
+	self.Indicator:SetSize(120, 22)
+	self.Indicator:ClearAllPoints()
+	self.Indicator:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+	self.Indicator:SetFrameStrata("FULLSCREEN")
+	self.Indicator:SetFrameLevel(UIParent:GetFrameLevel() + 10)
+	self.Indicator:EnableMouse(true)
+	if self.Indicator.SetClampedToScreen then self.Indicator:SetClampedToScreen(true) end
+	self.Indicator.Color:ClearAllPoints()
+	self.Indicator.Color:SetSize(18, 18)
+	self.Indicator.Color:SetPoint("LEFT", self.Indicator, "LEFT", 0, 0)
+	self.Indicator.Color:SetVertexColor(0, 0, 0, 1)
+	self.Label:ClearAllPoints()
+	self.Label:SetPoint("LEFT", self.Indicator.Color, "RIGHT", 4, 0)
+	self.Label:SetWidth(96)
+	self.Label:SetJustifyH("LEFT")
+	self.Label:SetTextColor(1, 1, 0)
 
 	self.Panel = assert(_G.GeniusPanel, "GeniusPanel is missing from switchs.xml")
 	self.Panel.Background = _G.GeniusPanelBackground
