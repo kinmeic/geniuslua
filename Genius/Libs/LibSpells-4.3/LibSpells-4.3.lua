@@ -2,7 +2,7 @@
 -- Local Definations
 ---------------------
 local MAJOR_VERSION = "LibSpells-4.3"
-local MINOR_VERSION = 10000 + tonumber(("$Rev: 001 $"):match("%d+"))
+local MINOR_VERSION = 10000 + tonumber(("$Rev: 002 $"):match("%d+"))
 
 if not LibStub then error(MAJOR_VERSION .. " requires LibStub.") end
 local lib = LibStub:NewLibrary(MAJOR_VERSION, MINOR_VERSION)
@@ -66,6 +66,15 @@ local function GetAuraDurationObject(unit, aura)
 	if ok then return durationObject end
 end
 
+local function GetAuraRefreshCarryOverDuration(unit, auraInstanceID)
+	if not (C_UnitAuras and C_UnitAuras.GetRefreshCarryOverDuration) or not auraInstanceID then return end
+	local ok, duration = pcall(C_UnitAuras.GetRefreshCarryOverDuration, unit, auraInstanceID)
+	if not ok or IsUninspectable(duration) or type(duration) ~= "number" or duration < 0 or duration ~= duration then
+		return
+	end
+	return duration
+end
+
 local function GetDurationObjectNumber(durationObject, methodName)
 	if not durationObject then return nil, false end
 	local ok, value = pcall(function()
@@ -82,6 +91,7 @@ end
 local function GetAuraValues(aura, unit)
 	if not aura then return 0, 0, 0, 0, true, true, true, nil, false, nil, true end
 
+	local auraInstanceID = GetSafeField(aura, "auraInstanceID")
 	local count, countKnown = ReadAuraField(aura, "applications")
 	local auraCharges, auraChargesKnown = ReadAuraField(aura, "charges")
 	local duration, durationKnown = ReadAuraField(aura, "duration")
@@ -101,7 +111,7 @@ local function GetAuraValues(aura, unit)
 	end
 
 	if expirationKnown and expires == 0 then
-		return math.huge, count or 0, duration or 0, 0, true, true, countKnown, durationObject, true, auraCharges, auraChargesKnown
+		return math.huge, count or 0, duration or 0, 0, true, true, countKnown, durationObject, true, auraCharges, auraChargesKnown, auraInstanceID
 	end
 
 	local remaining, remainingKnown = GetDurationObjectNumber(durationObject, "GetRemainingDuration")
@@ -109,9 +119,9 @@ local function GetAuraValues(aura, unit)
 		remaining, remainingKnown = expires - GetTime(), true
 	end
 	if not remainingKnown then
-		return 0, count or 0, duration or 0, 0, false, durationKnown, countKnown, durationObject, false, auraCharges, auraChargesKnown
+		return 0, count or 0, duration or 0, 0, false, durationKnown, countKnown, durationObject, false, auraCharges, auraChargesKnown, auraInstanceID
 	end
-	return math.max(0, remaining), count or 0, duration or 0, 0, true, durationKnown, countKnown, durationObject, false, auraCharges, auraChargesKnown
+	return math.max(0, remaining), count or 0, duration or 0, 0, true, durationKnown, countKnown, durationObject, false, auraCharges, auraChargesKnown, auraInstanceID
 end
 
 local function GetAuraDataSafely(unit, index, filter)
@@ -370,15 +380,16 @@ function lib:Update(useId)
 	local timeleft, count, duration, value = 0, 0, 0, 0
 	local timeleftKnown, durationKnown, countKnown, durationObject, permanentAura = true, true, true, nil, false
 	local auraCharges, auraChargesKnown = nil, true
+	local auraInstanceID
 	local charges, maxCharges, cstart, cduration, chargesKnown, chargeModRate, chargeBased = 0, 0, 0, 0, true, 1, false
 	
 	if self.auras then
-		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown = self:GetAuraByGroup()
+		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = self:GetAuraByGroup()
 	elseif useId then
-		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown = self:GetAuraByID(self.aid)
+		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = self:GetAuraByID(self.aid)
 		self.CD, self.CDMAX, self.CDEnabled = self:GetCooldown()
 	else
-		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown = self:GetAura(self.aura)
+		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = self:GetAura(self.aura)
 		self.CD, self.CDMAX, self.CDEnabled = self:GetCooldown()
 	end
 	
@@ -401,7 +412,10 @@ function lib:Update(useId)
 	self.auraChargesKnown = auraChargesKnown ~= false
 	self.duration = duration
 	self.durationKnown = durationKnown ~= false
-	self.refresh = duration * 0.3
+	self.auraInstanceID = auraInstanceID
+	local refresh = GetAuraRefreshCarryOverDuration(self.unit, auraInstanceID)
+	if refresh == nil then refresh = duration * 0.3 end
+	self.refresh = refresh
 	self.auraDurationObject = durationObject
 	self.tick = value
 	self.charges = charges
@@ -557,11 +571,12 @@ function lib:GetAuraByGroup()
 	local timeleftKnown, durationKnown, countKnown = true, true, true
 	local auraCharges, auraChargesKnown = nil, true
 	local durationObject, permanentAura = nil, false
+	local auraInstanceID
 	self.affects = 0
 	self.affects_list = {}
 
 	for _, auraName in ipairs(self.auras) do
-		local auraTime, auraCount, auraDuration, auraTick, auraTimeKnown, auraDurationKnown, auraCountKnown, auraDurationObject, auraIsPermanent, auraAuraCharges, auraAuraChargesKnown = self:GetAura(auraName)
+		local auraTime, auraCount, auraDuration, auraTick, auraTimeKnown, auraDurationKnown, auraCountKnown, auraDurationObject, auraIsPermanent, auraAuraCharges, auraAuraChargesKnown, auraAuraInstanceID = self:GetAura(auraName)
 		if not auraTimeKnown then
 			timeleftKnown = false
 			durationKnown = false
@@ -578,6 +593,7 @@ function lib:GetAuraByGroup()
 				permanentAura = auraIsPermanent
 				auraCharges = auraAuraCharges
 				auraChargesKnown = auraAuraChargesKnown
+				auraInstanceID = auraAuraInstanceID
 			end
 		end
 	end
@@ -588,7 +604,7 @@ function lib:GetAuraByGroup()
 		auraChargesKnown = false
 	end
 
-	return timeleft, count, duration, tick, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown
+	return timeleft, count, duration, tick, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID
 end
 
 -- Remaining time is nil when the aura data is currently secret or unavailable.

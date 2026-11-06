@@ -21,5 +21,7 @@ L["Stance"] = "Stance"
 L["Moving"] = "Moving"
 L["Enemies"] = "Enemies"
 L["Memory"] = "|cff00FFFFMemory|r"
+L["Unlock Panel"] = "Unlock switch panel"
+L["Drag Panel"] = "Drag here to move"
 
 L["Break Success"] = "** I have breaked %s's %s. **"

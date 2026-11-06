@@ -6,6 +6,7 @@
 ## Notes: |cff99ff33Version|r 6.0
 ## Version: 6.0
 ## Author: Kinmeic
+## SavedVariables: GeniusDB
 
 #@no-lib-strip@
 embeds.xml

@@ -21,5 +21,7 @@ L["Stance"] = "姿態"
 L["Moving"] = "移動中"
 L["Enemies"] = "敵人數量"
 L["Memory"] = "|cff00FFFF記憶體|r"
+L["Unlock Panel"] = "解鎖開關面板"
+L["Drag Panel"] = "拖曳此處移動面板"
 
 L["Break Success"] = "** 我成功打斷了%s的%s。 **"
