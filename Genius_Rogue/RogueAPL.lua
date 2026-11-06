@@ -10,7 +10,7 @@ end
 
 -- Resolve a ranked spell ID to its localized name so SpellIdentifier-based
 -- APIs select the highest rank the player has learned.
-function APL.RankedSpell(spellID)
+function APL.RankedSpell(spellID, auraID, unit, filter)
 	local identifier = spellID
 	if C_Spell and C_Spell.GetSpellInfo then
 		local ok, spellInfo = pcall(C_Spell.GetSpellInfo, spellID)
@@ -21,7 +21,7 @@ function APL.RankedSpell(spellID)
 			end
 		end
 	end
-	return LibSpell:New(identifier)
+	return LibSpell:New(identifier, auraID, unit, filter)
 end
 
 function APL.Aura(spellID, unit, filter)

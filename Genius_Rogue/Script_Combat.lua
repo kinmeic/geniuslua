@@ -8,6 +8,7 @@ local SW4 = _G["GeniusPanelSwitch4"]
 
 local Kick = APL.Spell(1766)
 local Ambush = APL.Spell(8676)
+local SliceAndDice = APL.RankedSpell(5171, 5171, "player", "HELPFUL|PLAYER")
 -- Forever keeps Sinister Strike as a ranked Classic spell (1752 and later
 -- ranks). Resolve its localized spell name so the client uses the highest
 -- learned rank instead of the unrelated/deprecated 193315 ID.
@@ -37,6 +38,7 @@ local RTBBuffs = LibStub("LibSpells-4.3"):NewAuras(
 	{ 193356, 193357, 193358, 193359, 199600, 199603 }, "player", "HELPFUL|PLAYER")
 
 function Core:RogueCombat(power, comboPoints, stealthed, target, maxComboPoints)
+	SliceAndDice:Update()
 	Opportunity:Update(true)
 	Audacity:Update(true)
 	LoadedDice:Update(true)
@@ -57,6 +59,14 @@ function Core:RogueCombat(power, comboPoints, stealthed, target, maxComboPoints)
 
 	if not APL.IsChecked(SW2) and APL.CanBreak(target) and APL.CanCast(Kick) then
 		return "S="
+	end
+
+	local sliceAndDiceRemains = APL.Remains(SliceAndDice)
+	local inOpener = Core.CombatTime > 0 and GetTime() - Core.CombatTime < 5
+	if (inOpener or comboPoints ~= nil and comboPoints >= 3)
+		and sliceAndDiceRemains ~= nil and sliceAndDiceRemains <= 2
+		and APL.CanCast(SliceAndDice, nil, true, true) then
+		return "D6"
 	end
 
 	local adrenalineRushUp = APL.Up(AdrenalineRushBuff)
