@@ -2,7 +2,7 @@
 -- Local Definations
 ---------------------
 local MAJOR_VERSION = "LibSpells-4.3"
-local MINOR_VERSION = 10000 + tonumber(("$Rev: 002 $"):match("%d+"))
+local MINOR_VERSION = 10000 + tonumber(("$Rev: 004 $"):match("%d+"))
 
 if not LibStub then error(MAJOR_VERSION .. " requires LibStub.") end
 local lib = LibStub:NewLibrary(MAJOR_VERSION, MINOR_VERSION)
@@ -10,7 +10,37 @@ if not lib then return end
 
 local C_Spell = C_Spell
 local C_UnitAuras = C_UnitAuras
+local C_Secrets = C_Secrets
 local AuraRestrictionTypeNames = { "Combat", "Encounter", "ChallengeMode", "PvPMatch", "Map" }
+local AuraRegistries = {}
+local IsAuraDataRestricted
+
+local function GetEstimatedTimeleft(object)
+	local estimate = object.auraEstimate
+	if not estimate or not estimate.expiresAt then return nil end
+	return math.max(0, estimate.expiresAt - GetTime())
+end
+
+local function ApplyAuraEstimate(object)
+	local remaining = GetEstimatedTimeleft(object)
+	if remaining == nil then return false end
+	object.timeleft = remaining
+	object.timeleftKnown = true
+	object.timeleftUpdatedAt = GetTime()
+	object.timeleftSource = "estimated"
+	object.duration = object.auraEstimate.duration
+	object.durationKnown = true
+	object.count = 0
+	object.countKnown = false
+	object.auraCharges = nil
+	object.auraChargesKnown = false
+	object.auraDurationObject = nil
+	object.auraInstanceID = nil
+	object.permanentAura = false
+	object.tick = 0
+	object.refresh = object.duration * 0.3
+	return true
+end
 
 local function IsUninspectable(value)
 	if issecretvalue and issecretvalue(value) then return true end
@@ -20,7 +50,8 @@ end
 
 local function ReadAuraField(aura, field)
 	if not aura or IsUninspectable(aura) then return nil, false end
-	local value = aura[field]
+	local ok, value = pcall(function() return aura[field] end)
+	if not ok then return nil, false end
 	if IsUninspectable(value) then return nil, false end
 	return value, true
 end
@@ -60,6 +91,7 @@ end
 
 local function GetAuraDurationObject(unit, aura)
 	if not (C_UnitAuras and C_UnitAuras.GetAuraDuration) then return end
+	if IsAuraDataRestricted and IsAuraDataRestricted() then return end
 	local auraInstanceID, readable = ReadAuraField(aura, "auraInstanceID")
 	if not readable or not auraInstanceID then return end
 	local ok, durationObject = pcall(C_UnitAuras.GetAuraDuration, unit, auraInstanceID)
@@ -68,6 +100,7 @@ end
 
 local function GetAuraRefreshCarryOverDuration(unit, auraInstanceID)
 	if not (C_UnitAuras and C_UnitAuras.GetRefreshCarryOverDuration) or not auraInstanceID then return end
+	if IsAuraDataRestricted and IsAuraDataRestricted() then return end
 	local ok, duration = pcall(C_UnitAuras.GetRefreshCarryOverDuration, unit, auraInstanceID)
 	if not ok or IsUninspectable(duration) or type(duration) ~= "number" or duration < 0 or duration ~= duration then
 		return
@@ -125,13 +158,42 @@ local function GetAuraValues(aura, unit)
 end
 
 local function GetAuraDataSafely(unit, index, filter)
+	if IsAuraDataRestricted and IsAuraDataRestricted() then return nil, false end
 	local ok, aura = pcall(GetAuraData, unit, index, filter)
 	if not ok then return nil, false end
 	if IsUninspectable(aura) then return nil, false end
 	return aura, true
 end
 
-local function IsAuraDataRestricted()
+local function GetAuraDataBySpellIDSafely(unit, spellID)
+	if not C_UnitAuras then return nil, false, false end
+
+	local getter, playerAuraGetter = C_UnitAuras.GetUnitAuraBySpellID, false
+	if unit == "player" and C_UnitAuras.GetPlayerAuraBySpellID then
+		getter, playerAuraGetter = C_UnitAuras.GetPlayerAuraBySpellID, true
+	end
+	if not getter then return nil, false, false end
+
+	local ok, aura
+	if playerAuraGetter then
+		ok, aura = pcall(getter, spellID)
+	else
+		ok, aura = pcall(getter, unit, spellID)
+	end
+	if not ok then return nil, false, true, "api-error" end
+	if IsUninspectable(aura) then return nil, false, true, "secret-data" end
+	if not aura and IsAuraDataRestricted and IsAuraDataRestricted() then
+		return nil, false, true, "auras-secret"
+	end
+	return aura, true, true, nil
+end
+
+IsAuraDataRestricted = function()
+	if C_Secrets and C_Secrets.ShouldAurasBeSecret then
+		local ok, restricted = pcall(C_Secrets.ShouldAurasBeSecret)
+		if ok and type(restricted) == "boolean" then return restricted end
+	end
+
 	if GetRestrictedActionStatus and Enum and Enum.RestrictedActionType and Enum.RestrictedActionType.SecretAuras then
 		local ok, restricted = pcall(GetRestrictedActionStatus, Enum.RestrictedActionType.SecretAuras)
 		if ok and type(restricted) == "boolean" then return restricted end
@@ -155,6 +217,310 @@ local function IsAuraDataRestricted()
 	end
 
 	return false
+end
+
+local function NormalizeAuraFilter(filter)
+	local parts = {}
+	for part in string.gmatch(filter or "", "[^|]+") do
+		table.insert(parts, part)
+	end
+	table.sort(parts)
+	return table.concat(parts, "|")
+end
+
+local function GetAuraRegistryKey(unit, filter)
+	return (unit or "target") .. "\31" .. NormalizeAuraFilter(filter)
+end
+
+local function GetAuraRegistry(unit, filter)
+	local key = GetAuraRegistryKey(unit, filter)
+	local registry = AuraRegistries[key]
+	if not registry then
+		registry = {
+			key = key,
+			unit = unit or "target",
+			filter = NormalizeAuraFilter(filter),
+			objects = {},
+			objectsBySpellID = {},
+			objectsByName = {},
+			bySpellID = {},
+			byName = {},
+			knownSpellIDs = {},
+			knownNames = {},
+			status = "not-updated",
+		}
+		AuraRegistries[key] = registry
+	end
+	return registry
+end
+
+local function AddAuraObjectToMap(map, key, object)
+	if key == nil then return end
+	local objects = map[key]
+	if not objects then
+		objects = {}
+		map[key] = objects
+	end
+	table.insert(objects, object)
+end
+
+local function RemoveAuraObjectFromMap(map, object)
+	for key, objects in pairs(map) do
+		for index = #objects, 1, -1 do
+			if objects[index] == object then table.remove(objects, index) end
+		end
+		if #objects == 0 then map[key] = nil end
+	end
+end
+
+local function RegisterAuraObject(object)
+	local registry = GetAuraRegistry(object.unit, object.filter)
+	if object.auraRegistry == registry then return end
+
+	if object.auraRegistry then
+		local oldRegistry = object.auraRegistry
+		for index = #oldRegistry.objects, 1, -1 do
+			if oldRegistry.objects[index] == object then table.remove(oldRegistry.objects, index) end
+		end
+		RemoveAuraObjectFromMap(oldRegistry.objectsBySpellID, object)
+		RemoveAuraObjectFromMap(oldRegistry.objectsByName, object)
+	end
+
+	object.auraRegistry = registry
+	table.insert(registry.objects, object)
+	if type(object.aid) == "number" then
+		AddAuraObjectToMap(registry.objectsBySpellID, object.aid, object)
+	end
+	if type(object.aura) == "string" then
+		AddAuraObjectToMap(registry.objectsByName, object.aura, object)
+	end
+	for _, auraName in ipairs(object.auras or {}) do
+		AddAuraObjectToMap(registry.objectsByName, auraName, object)
+	end
+end
+
+local function MarkAuraObjectsUnknown(registry)
+	registry.updated = false
+	for _, object in ipairs(registry.objects) do
+		if not ApplyAuraEstimate(object) then
+			object.timeleft = 0
+			object.timeleftKnown = false
+			object.timeleftUpdatedAt = GetTime()
+			object.timeleftSource = "unknown"
+			object.permanentAura = false
+			object.count = 0
+			object.countKnown = false
+			object.duration = 0
+			object.durationKnown = false
+			object.auraCharges = nil
+			object.auraChargesKnown = false
+			object.auraInstanceID = nil
+			object.auraDurationObject = nil
+			object.tick = 0
+			object.refresh = 0
+		end
+	end
+end
+
+local function UpdateRegisteredAuraObjects(registry)
+	for _, object in ipairs(registry.objects) do
+		local timeleft, count, duration, tick = 0, 0, 0, 0
+		local timeleftKnown, durationKnown, countKnown = true, true, true
+		local durationObject, permanentAura
+		local auraCharges, auraChargesKnown, auraInstanceID
+
+		if object.auras then
+			timeleft, count, duration, tick, timeleftKnown, durationKnown, countKnown,
+				durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = object:GetAuraByGroup()
+		elseif type(object.aid) == "number" then
+			timeleft, count, duration, tick, timeleftKnown, durationKnown, countKnown,
+				durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = object:GetAuraByID(object.aid)
+		else
+			timeleft, count, duration, tick, timeleftKnown, durationKnown, countKnown,
+				durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = object:GetAura(object.aura)
+		end
+
+		object.timeleft = timeleft
+		object.timeleftKnown = timeleftKnown ~= false
+		object.timeleftUpdatedAt = GetTime()
+		object.timeleftSource = object.timeleftKnown and "api" or "unknown"
+		object.permanentAura = permanentAura == true
+		object.count = count
+		object.countKnown = countKnown ~= false
+		object.duration = duration
+		object.durationKnown = durationKnown ~= false
+		object.auraCharges = auraCharges
+		object.auraChargesKnown = auraChargesKnown ~= false
+		object.auraInstanceID = auraInstanceID
+		object.auraDurationObject = durationObject
+		object.tick = tick
+		object.refresh = duration * 0.3
+		if not object.timeleftKnown then
+			ApplyAuraEstimate(object)
+		elseif timeleft > 0 and durationKnown and duration > 0 then
+			object.auraEstimate.expiresAt = GetTime() + timeleft
+			object.auraEstimate.duration = duration
+		elseif timeleft <= 0 then
+			object.auraEstimate.expiresAt = nil
+		end
+	end
+end
+
+local function AuraMatchesFilter(aura, filter)
+	local normalizedFilter = "|" .. (filter or "") .. "|"
+	local checks = {
+		{ "HELPFUL", "isHelpful" },
+		{ "HARMFUL", "isHarmful" },
+		{ "PLAYER", "isFromPlayerOrPlayerPet" },
+	}
+
+	for _, check in ipairs(checks) do
+		if string.find(normalizedFilter, "|" .. check[1] .. "|", 1, true) then
+			local matches, readable = ReadAuraField(aura, check[2])
+			if not readable then return false, "filter-unknown" end
+			if not matches then return false, "filter-mismatch" end
+		end
+	end
+	return true
+end
+
+local function UpdateAuraRegistry(registry)
+	registry.updated = true
+	registry.bySpellID = {}
+	registry.byName = {}
+	registry.knownSpellIDs = {}
+	registry.knownNames = {}
+	registry.auraCount = 0
+	registry.queryCount = 0
+	registry.error = nil
+	local unknownCount = 0
+
+	local function QueryAura(identifier, bySpellID)
+		registry.queryCount = registry.queryCount + 1
+		local aura, readable, supported, reason = GetAuraDataBySpellIDSafely(registry.unit, identifier)
+		if readable and aura then
+			local matches, filterReason = AuraMatchesFilter(aura, registry.filter)
+			if not matches then
+				readable = false
+				reason = filterReason
+				aura = nil
+			end
+		end
+		local key = bySpellID and registry.knownSpellIDs or registry.knownNames
+		local data = bySpellID and registry.bySpellID or registry.byName
+		if readable then
+			key[identifier] = true
+			if aura then
+				data[identifier] = aura
+				registry.auraCount = registry.auraCount + 1
+				local name, nameReadable = ReadAuraField(aura, "name")
+				if nameReadable and type(name) == "string" then
+					registry.byName[name] = registry.byName[name] or aura
+					registry.knownNames[name] = true
+				end
+				local spellID, spellIDReadable = ReadAuraField(aura, "spellId")
+				if spellIDReadable and type(spellID) == "number" then
+					registry.bySpellID[spellID] = registry.bySpellID[spellID] or aura
+					registry.knownSpellIDs[spellID] = true
+				end
+			end
+		else
+			unknownCount = unknownCount + 1
+			registry.error = registry.error or reason or (supported and "unreadable" or "api-unavailable")
+		end
+
+	end
+
+	local hasAuraGetter = C_UnitAuras and (C_UnitAuras.GetUnitAuraBySpellID
+		or (registry.unit == "player" and C_UnitAuras.GetPlayerAuraBySpellID))
+	if not hasAuraGetter then
+		registry.status = "api-unavailable"
+		registry.error = "GetUnitAuraBySpellID unavailable"
+		registry.updated = false
+		MarkAuraObjectsUnknown(registry)
+		return
+	end
+
+	local spellIDs = {}
+	for spellID in pairs(registry.objectsBySpellID) do table.insert(spellIDs, spellID) end
+	table.sort(spellIDs)
+	for _, spellID in ipairs(spellIDs) do QueryAura(spellID, true) end
+
+	local names = {}
+	for name in pairs(registry.objectsByName) do table.insert(names, name) end
+	table.sort(names)
+	for _, name in ipairs(names) do QueryAura(name, false) end
+
+	if unknownCount == 0 then
+		registry.status = "ok"
+	elseif registry.auraCount > 0 then
+		registry.status = "partial"
+	else
+		registry.status = "restricted"
+	end
+	UpdateRegisteredAuraObjects(registry)
+end
+
+local function GetRegisteredAuraData(object, key, bySpellID)
+	local registry = object.auraRegistry
+	if not registry or not registry.updated then return nil, false, false end
+	local auraData, known
+	if bySpellID then
+		auraData = registry.bySpellID[key]
+		known = registry.knownSpellIDs[key]
+	else
+		auraData = registry.byName[key]
+		known = registry.knownNames[key]
+	end
+	if auraData then return auraData, true, true end
+	return nil, known == true, true
+end
+
+function lib:UpdateAuras(unit, filter)
+	local normalizedFilter = filter and NormalizeAuraFilter(filter)
+	local updated = 0
+	for _, registry in pairs(AuraRegistries) do
+		if (not unit or registry.unit == unit)
+			and (not normalizedFilter or registry.filter == normalizedFilter) then
+			UpdateAuraRegistry(registry)
+			updated = updated + 1
+		end
+	end
+	return updated
+end
+
+-- Every registered aura has its own clock. Variable durations need an estimator.
+function lib:SetAuraEstimator(estimator, castIDs)
+	self.auraEstimate.estimator = estimator
+	self.auraEstimate.castIDs = {}
+	if type(self.sid) == "number" then self.auraEstimate.castIDs[self.sid] = true end
+	for _, spellID in ipairs(castIDs or {}) do self.auraEstimate.castIDs[spellID] = true end
+	return self
+end
+
+function lib:RecordAuraCast(spellID)
+	if IsUninspectable(spellID) or type(spellID) ~= "number" then return end
+	for _, registry in pairs(AuraRegistries) do
+		if registry.unit == "player" then
+			for _, object in ipairs(registry.objects) do
+				local estimate = object.auraEstimate
+				if estimate and estimate.castIDs[spellID] then
+					local duration = estimate.estimator
+					if type(duration) == "function" then
+						local ok, result = pcall(duration, object, spellID)
+						duration = ok and result or nil
+					end
+					if duration == nil then duration = estimate.duration end
+					if type(duration) == "number" and not IsUninspectable(duration)
+						and duration > 0 and duration < math.huge then
+						estimate.duration = duration
+						estimate.expiresAt = GetTime() + duration
+						if IsAuraDataRestricted() then ApplyAuraEstimate(object) end
+					end
+				end
+			end
+		end
+	end
 end
 
 local function GetSpellChargesInfo(spellID)
@@ -263,7 +629,8 @@ end
 local function GetKnownTimeleft(value)
 	if IsUninspectable(value) then return end
 	if type(value) == "number" then return value end
-	if not value or value.timeleftKnown == false or IsAuraDataRestricted() then return end
+	if not value or value.timeleftKnown == false then return end
+	if value.timeleftSource == "estimated" then return GetEstimatedTimeleft(value) end
 	if value.permanentAura then return math.huge end
 	local remaining, remainingKnown = GetDurationObjectNumber(value.auraDurationObject, "GetRemainingDuration")
 	if remainingKnown then return math.max(0, remaining) end
@@ -305,6 +672,9 @@ function lib:New(spellId, auraId, unit, filter, magiclock)
 	object.timeleft = 0
 	object.timeleftKnown = true
 	object.timeleftUpdatedAt = GetTime()
+	object.timeleftSource = "api"
+	object.auraEstimate = { castIDs = {} }
+	if type(spellId) == "number" then object.auraEstimate.castIDs[spellId] = true end
 	object.permanentAura = false
 	object.count = 0
 	object.countKnown = true
@@ -325,6 +695,7 @@ function lib:New(spellId, auraId, unit, filter, magiclock)
 	
 	setmetatable(object, self)
 	self.__index = self
+	RegisterAuraObject(object)
 	return object
 end
 
@@ -344,6 +715,8 @@ function lib:NewAuras(auras, unit, filter)
 	object.timeleft = 0
 	object.timeleftKnown = true
 	object.timeleftUpdatedAt = GetTime()
+	object.timeleftSource = "api"
+	object.auraEstimate = { castIDs = {} }
 	object.permanentAura = false
 	object.count = 0
 	object.countKnown = true
@@ -361,6 +734,7 @@ function lib:NewAuras(auras, unit, filter)
 	
 	setmetatable(object, self)
 	self.__index = self
+	RegisterAuraObject(object)
 	return object
 end
 
@@ -368,6 +742,7 @@ end
 function lib:SetUnit(unit, filter)
 	self.unit = unit or self.unit
 	self.filter = filter or self.filter
+	RegisterAuraObject(self)
 end
 
 -- 设置按键
@@ -382,8 +757,15 @@ function lib:Update(useId)
 	local auraCharges, auraChargesKnown = nil, true
 	local auraInstanceID
 	local charges, maxCharges, cstart, cduration, chargesKnown, chargeModRate, chargeBased = 0, 0, 0, 0, true, 1, false
-	
-	if self.auras then
+
+	if self.auraRegistry and self.auraRegistry.updated then
+		timeleft, count, duration, value = self.timeleft, self.count, self.duration, self.tick
+		timeleftKnown, durationKnown, countKnown = self.timeleftKnown, self.durationKnown, self.countKnown
+		durationObject, permanentAura = self.auraDurationObject, self.permanentAura
+		auraCharges, auraChargesKnown = self.auraCharges, self.auraChargesKnown
+		auraInstanceID = self.auraInstanceID
+		self.CD, self.CDMAX, self.CDEnabled = self:GetCooldown()
+	elseif self.auras then
 		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = self:GetAuraByGroup()
 	elseif useId then
 		timeleft, count, duration, value, timeleftKnown, durationKnown, countKnown, durationObject, permanentAura, auraCharges, auraChargesKnown, auraInstanceID = self:GetAuraByID(self.aid)
@@ -405,6 +787,18 @@ function lib:Update(useId)
 	self.timeleft = timeleft
 	self.timeleftKnown = timeleftKnown ~= false
 	self.timeleftUpdatedAt = GetTime()
+	self.timeleftSource = self.timeleftKnown and "api" or "unknown"
+	if not self.timeleftKnown then
+		local estimated = GetEstimatedTimeleft(self)
+		if estimated ~= nil then
+			timeleft, duration = estimated, self.auraEstimate.duration
+			timeleftKnown, durationKnown = true, true
+			durationObject, permanentAura, auraInstanceID = nil, false, nil
+			self.timeleft = timeleft
+			self.timeleftKnown = true
+			self.timeleftSource = "estimated"
+		end
+	end
 	self.permanentAura = permanentAura == true
 	self.count = count
 	self.countKnown = countKnown ~= false
@@ -528,6 +922,13 @@ function lib:GetAura(aura)
 		return 0, 0, 0, 0, true, true, true, nil, false, nil, true
 	end
 
+	local registeredAura, registeredKnown, registered = GetRegisteredAuraData(self, aura, false)
+	if registered then
+		if registeredAura then return GetAuraValues(registeredAura, self.unit) end
+		if not registeredKnown then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
+		return 0, 0, 0, 0, true, true, true, nil, false, nil, true
+	end
+
 	for i = 1, 40 do
 		local auraData, readable = GetAuraDataSafely(self.unit, i, self.filter)
 		if not readable then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
@@ -547,6 +948,31 @@ end
 
 -- 根据ID获取效果信息
 function lib:GetAuraByID(aid)
+	local registeredAura, registeredKnown, registered = GetRegisteredAuraData(self, aid, true)
+	if registered then
+		if not registeredAura and type(self.aura) == "string" then
+			local namedAura, namedKnown, nameRegistered = GetRegisteredAuraData(self, self.aura, false)
+			if nameRegistered then
+				if namedAura then
+					registeredAura = namedAura
+				else
+					registeredKnown = registeredKnown and namedKnown
+				end
+			end
+		end
+		if registeredAura then return GetAuraValues(registeredAura, self.unit) end
+		if not registeredKnown then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
+		return 0, 0, 0, 0, true, true, true, nil, false, nil, true
+	end
+
+	local auraData, readable, supported = GetAuraDataBySpellIDSafely(self.unit, aid)
+	if supported then
+		if not readable then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
+		if auraData then return GetAuraValues(auraData, self.unit) end
+		if IsAuraDataRestricted() then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
+		return 0, 0, 0, 0, true, true, true, nil, false, nil, true
+	end
+
 	for i = 1, 40 do
 		local auraData, readable = GetAuraDataSafely(self.unit, i, self.filter)
 		if not readable then return 0, 0, 0, 0, false, false, false, nil, false, nil, false end
@@ -609,6 +1035,7 @@ end
 
 -- Remaining time is nil when the aura data is currently secret or unavailable.
 function lib:GetRemainingTime()
+	if self.timeleftSource == "estimated" then return GetEstimatedTimeleft(self) end
 	return GetKnownTimeleft(self)
 end
 
@@ -618,11 +1045,11 @@ function lib:GetAuraDurationObject()
 end
 
 local function GetRuleTimeleft(self)
-	return GetKnownTimeleft(self)
+	return self:GetRemainingTime()
 end
 
 function lib:IsAuraPermanent()
-	if self.timeleftKnown == false or IsAuraDataRestricted() then return nil end
+	if self.timeleftKnown == false or self.timeleftSource == "estimated" then return nil end
 	return self.permanentAura == true
 end
 

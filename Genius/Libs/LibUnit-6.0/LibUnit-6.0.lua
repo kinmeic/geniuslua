@@ -2,7 +2,7 @@
 -- Local Definations
 ---------------------
 local MAJOR_VERSION = "LibUnit-6.0"
-local MINOR_VERSION = 60000 + tonumber(("$Rev: 001 $"):match("%d+"))
+local MINOR_VERSION = 60000 + tonumber(("$Rev: 002 $"):match("%d+"))
 
 if not LibStub then error(MAJOR_VERSION .. " requires LibStub.") end
 local lib = LibStub:NewLibrary(MAJOR_VERSION, MINOR_VERSION)
@@ -11,6 +11,7 @@ if not lib then return end
 local UnitHealth, UnitHealthMax, UnitPower, UnitPowerMax = UnitHealth, UnitHealthMax, UnitPower, UnitPowerMax
 local C_SpecializationInfo = C_SpecializationInfo
 local C_UnitAuras = C_UnitAuras
+local C_Secrets = C_Secrets
 local select = select
 
 local function ReadableNumber(value)
@@ -35,6 +36,10 @@ end
 
 local function GetAuraDataByIndex(unit, index, filter)
 	if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then return nil end
+	if C_Secrets and C_Secrets.ShouldAurasBeSecret then
+		local ok, restricted = pcall(C_Secrets.ShouldAurasBeSecret)
+		if ok and restricted then return nil end
+	end
 	local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, filter)
 	if ok then return aura end
 end
@@ -152,9 +157,16 @@ end
 -- 獲取連擊點數
 function lib:GetCP()
 	if UnitPower then
-		return ReadableNumber(UnitPower("player", 4))
-	elseif GetComboPoints then
-		return ReadableNumber(GetComboPoints("player", "target"))
+		local ok, comboPoints = pcall(UnitPower, "player", 4)
+		if ok then
+			comboPoints = ReadableNumber(comboPoints)
+			if comboPoints ~= nil then return comboPoints end
+		end
+	end
+	-- 当前客户端若仍提供旧版目标连击点 API，则在 UnitPower 不可读时回退。
+	if GetComboPoints then
+		local ok, comboPoints = pcall(GetComboPoints, "player", "target")
+		if ok then return ReadableNumber(comboPoints) end
 	end
 end
 

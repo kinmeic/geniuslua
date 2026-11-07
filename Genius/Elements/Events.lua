@@ -104,6 +104,8 @@ end
 
 function Core:UNIT_SPELLCAST_SUCCEEDED(event, unit, castGUID, spellID, castBarID)
 	if unit ~= "player" then return end
+	local LibSpell = LibStub("LibSpells-4.3", true)
+	if LibSpell then LibSpell:RecordAuraCast(spellID) end
 	if self["SPELLCAST_SUCCEEDED"] then
 		self["SPELLCAST_SUCCEEDED"](self, GetSpellName(spellID), spellID, castGUID, castBarID)
 	end

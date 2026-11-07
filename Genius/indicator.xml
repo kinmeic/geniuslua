@@ -2,7 +2,7 @@
 	<Frame name="GeniusIndicator" parent="UIParent" frameStrata="FULLSCREEN" alpha="1.0" toplevel="true" enableMouse="true" clampedToScreen="true" hidden="false">
 		<Size><AbsDimension x="120" y="22"/></Size>
 		<Anchors>
-			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT" x="0" y="0"/>
+			<Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="TOPLEFT" x="2" y="0"/>
 		</Anchors>
 		<Layers>
 			<Layer level="ARTWORK">

@@ -2,6 +2,8 @@
 
 local LibSpells = LibStub("LibSpells-4.3")
 local SpellCheckers = {}
+local C_UnitAuras = C_UnitAuras
+local C_Secrets = C_Secrets
 
 -- Shared spell availability check used by helpers such as CanDispel.
 -- Cache the LibSpells objects because the main update loop may query them often.
@@ -26,6 +28,10 @@ end
 
 local function GetAuraDataByIndex(unit, index, filter)
 	if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then return nil end
+	if C_Secrets and C_Secrets.ShouldAurasBeSecret then
+		local ok, restricted = pcall(C_Secrets.ShouldAurasBeSecret)
+		if ok and restricted then return nil end
+	end
 	local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, filter)
 	if ok then return aura end
 end
