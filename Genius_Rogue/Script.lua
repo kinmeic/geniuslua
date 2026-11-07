@@ -95,24 +95,26 @@ function Core:Manual()
 	local maxComboPoints = GetComboPointsMax()
 	local actionKey
 
-	if self.Talent == 1 then
-		actionKey = self:RogueAssassination(energy, comboPoints, stealthed, Target, maxComboPoints)
-	elseif self.Talent == 2 then
-		actionKey = self:RogueCombat(energy, comboPoints, stealthed, Target, maxComboPoints)
-	elseif self.Talent == 3 then
-		actionKey = self:RogueSubtlety(energy, comboPoints, stealthed, Target, maxComboPoints)
-	else
-		actionKey = self:RogueNoSpecialization(energy, comboPoints, stealthed, Target, maxComboPoints)
-	end
+	-- if self.Talent == 1 then
+	-- 	actionKey = self:RogueAssassination(energy, comboPoints, stealthed, Target, maxComboPoints)
+	-- elseif self.Talent == 2 then
+	-- 	actionKey = self:RogueCombat(energy, comboPoints, stealthed, Target, maxComboPoints)
+	-- elseif self.Talent == 3 then
+	-- 	actionKey = self:RogueSubtlety(energy, comboPoints, stealthed, Target, maxComboPoints)
+	-- else
+	-- 	actionKey = self:RogueNoSpecialization(energy, comboPoints, stealthed, Target, maxComboPoints)
+	-- end
 
-	-- Fall back to the basic builder only while there is room for combo points.
-	if not actionKey and (comboPoints == nil or comboPoints < maxComboPoints) then
-		local APL = self.RogueAPL
-		if APL and (APL.CanCast(NoSpecSinisterStrike, nil, true, true)
-			or APL.CanCast(NoSpecSinisterStrikeByName, nil, true, true)) then
-			actionKey = "D2"
-		end
-	end
+	-- -- Fall back to the basic builder only while there is room for combo points.
+	-- if not actionKey and (comboPoints == nil or comboPoints < maxComboPoints) then
+	-- 	local APL = self.RogueAPL
+	-- 	if APL and (APL.CanCast(NoSpecSinisterStrike, nil, true, true)
+	-- 		or APL.CanCast(NoSpecSinisterStrikeByName, nil, true, true)) then
+	-- 		actionKey = "D2"
+	-- 	end
+	-- end
+
+	actionKey = self:RogueCombat(energy, comboPoints, stealthed, Target, maxComboPoints)
 
 	self:Press(actionKey)
 end

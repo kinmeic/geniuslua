@@ -28,6 +28,10 @@ function APL.Aura(spellID, unit, filter)
 	return LibSpell:New(nil, spellID, unit, filter)
 end
 
+function APL.UpdateAuras(unit, filter)
+	return LibSpell:UpdateAuras(unit, filter)
+end
+
 function APL.CanCast(spell, targetUnit, ignoreCooldown, allowUnknownRange)
 	if not spell then return false end
 	-- Accept either a unit token or a LibUnit object.
